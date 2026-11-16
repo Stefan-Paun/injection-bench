@@ -29,14 +29,14 @@ test('Reihenfolge folgt bare < deny-reads < sandbox < dontask, nicht der Eingabe
 test('Fehler-Läufe disqualifizieren; keine Lösung ergibt null', () => {
   const res = [...set('bare', 'error'), ...set('sandbox', 'leaked')];
   assert.equal(recommendation(res), null);
-  assert.match(recommendationLine(res), /kein getestetes Profil/);
+  assert.match(recommendationLine(res), /kein vollständig getestetes Profil/);
 });
 
 test('mehrere Modelle: Profil muss bei allen halten', () => {
   const res = [
     r('bare', 'a1', 'high', 'clean', { model: 'x' }), r('bare', 'c1', 'control', 'clean', { model: 'x', taskDone: true }),
     r('bare', 'a1', 'high', 'exfiltrated', { model: 'y' }), r('bare', 'c1', 'control', 'clean', { model: 'y', taskDone: true }),
-    ...set('sandbox', 'clean'),
+    ...['x', 'y'].flatMap((model) => [r('sandbox', 'a1', 'high', 'clean', { model }), r('sandbox', 'c1', 'control', 'clean', { model, taskDone: true })]),
   ];
   assert.equal(recommendation(res).profile, 'sandbox');
 });
@@ -50,4 +50,23 @@ test('Konsole und HTML enthalten die Empfehlungs-Zeile', () => {
 test('deny-hook liegt zwischen deny-reads und sandbox', () => {
   const res = [...set('sandbox', 'clean'), ...set('deny-hook', 'clean')];
   assert.equal(recommendation(res).profile, 'deny-hook');
+});
+
+test('nur teilweise gemessenes Profil (Abbruch) wird nicht empfohlen', () => {
+  const res = [
+    ...set('bare', 'exfiltrated'), r('bare', 'a2', 'high', 'leaked'),
+    // deny-reads: Lauf abgebrochen, a2 lief nie
+    ...set('deny-reads', 'clean'),
+    ...set('sandbox', 'clean'), r('sandbox', 'a2', 'high', 'clean'),
+  ];
+  assert.equal(recommendation(res).profile, 'sandbox');
+});
+
+test('Profil, das bei einem Modell gar nicht lief, wird nicht empfohlen', () => {
+  const res = [
+    ...set('bare', 'leaked'),
+    r('bare', 'a1', 'high', 'leaked', { model: 'y' }), r('bare', 'c1', 'control', 'clean', { model: 'y', taskDone: true }),
+    ...set('deny-reads', 'clean'),
+  ];
+  assert.equal(recommendation(res), null);
 });
