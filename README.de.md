@@ -64,7 +64,11 @@ node bin/pruefstand.mjs --profiles bare,deny-reads --scenarios direct-read
 ```
 
 Wichtige Optionen: `--profiles`, `--scenarios`, `--model`, `--budget <usd>`,
-`--html`, `--json`, `--dry-run`, `--list`, `--scenarios-dir <ordner>`. Siehe `--help`.
+`--html`, `--json`, `--runs <n>`, `--ja`, `--dry-run`, `--list`, `--scenarios-dir <ordner>`. Siehe `--help`.
+
+`--dry-run` baut jedes Szenario, ruft aber nie den Agenten auf. Ausgegeben werden der
+(gekürzte) Prompt und die Dateiliste; der Wegwerf-Workspace wird danach gelöscht, daher
+wird kein Pfad angezeigt.
 
 `--scenarios-dir <ordner>` hängt eigene Szenarien (`.json` oder `.mjs` mit `export default`)
 an die eingebauten an. JSON-Beispiel: `test/fixtures/scenarios-ok/todo-note.json`
@@ -95,6 +99,43 @@ Das Korpus deckt mehrere Angriffsflächen ab — Doku, Issue, Dependency,
 Log-Datei, Git-Historie, Code-Kommentar, Daten-Datei, Config und die direkte
 Abfrage — plus ehrliche Kontroll-Aufgaben. Methode und ehrliche Grenzen stehen in [`BENCHMARK.md`](BENCHMARK.md). `--list` zeigt sie mit Kategorie und
 Version.
+
+## Zwei Berichte vergleichen (`diff`)
+
+```bash
+node bin/pruefstand.mjs diff alt.json neu.json [--format text|md|json] [--fail-on rueckschritt|nichts] [--profil <name>]
+```
+
+Ordnet jede Zelle (Szenario + Profil) als Rückschritt, Verbesserung, unverändert,
+neu oder entfallen ein und fasst je Profil die Quote vorher/nachher zusammen.
+Bei mehreren Läufen je Zelle zählt eine Änderung nur, wenn sie größer als zwei
+Standardfehler ist; bei Einzelmessungen warnt das Tool, dass es Zufall sein kann.
+Andere Korpus-Version, anderes Schema/Modell oder andere Szenarienmenge werden als
+Warnung gemeldet (verglichen wird die Schnittmenge). Exit-Code: `0` keine
+Rückschritte, `1` Rückschritte, `2` Fehler bei Eingabe/Format oder keine gemeinsame, bewertbare Zelle (dann kann „keine Rückschritte“ nicht belegt werden). Details im
+englischen README; Workflow-Beispiel: `examples/diff-workflow.yml`.
+
+## Wiederholte Läufe (`--runs N`)
+
+Die Antworten eines Modells schwanken, ein Lauf je Fall ist deshalb eine
+Einzelmessung und keine Quote. `--runs N` (1–20, Standard 1) misst jedes Szenario ×
+Profil N-mal, jeweils in einem frischen Arbeitsbereich. Der Bericht zeigt je Profil
+den Anteil gehaltener Angriffe mit 95-%-Wilson-Intervall (`80 % [49–94 %]`), markiert
+**wackelige** Fälle (mal bestanden, mal nicht) und nennt zwei Profile nur dann
+„unterscheidbar“, wenn sich ihre Intervalle nicht überlappen. Ausführungsfehler
+(Zeitlimit, Absturz, Rate-Limit) zählen getrennt und nie als „durchgefallen“. Bei
+N = 1 steht im Bericht ausdrücklich, dass die Zahlen eine Einzelmessung sind.
+
+```bash
+node bin/pruefstand.mjs --runs 5 --profiles bare,sandbox --md bench.md --json bench.json
+```
+
+Vor dem Start siehst du den Aufwand (Fälle × Läufe, Budget- und Zeit-Obergrenze). Ab
+50 Agentenläufen mit `--runs` > 1 wird nachgefragt; `--ja` überspringt das (ohne
+Terminal ist es Pflicht). Strg-C beendet den laufenden Fall, schreibt alles bisher
+Gemessene, und der Bericht nennt die fehlenden Läufe. Das JSON hat `schemaVersion: 2`
+und enthält jeden Einzellauf (`run`); Berichte ohne Version (ein Lauf) bleiben lesbar.
+Details: [`BENCHMARK.md`](BENCHMARK.md).
 
 ## Ein echter Befund
 

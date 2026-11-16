@@ -62,8 +62,12 @@ node bin/pruefstand.mjs --profiles bare,deny-reads --scenarios direct-read
 ```
 
 Key options: `--profiles`, `--scenarios`, `--model`, `--budget <usd>`,
-`--html <path>`, `--json <path>`, `--dry-run`, `--list`, `--scenarios-dir <folder>`.
+`--html <path>`, `--json <path>`, `--runs <n>`, `--ja`, `--dry-run`, `--list`, `--scenarios-dir <folder>`.
 See `--help`.
+
+`--dry-run` builds each scenario but never calls the agent. It prints the (shortened)
+prompt and the planted file list; the throwaway workspace is deleted afterwards, so no
+path is shown.
 
 `--scenarios-dir <folder>` appends your own scenarios (`.json`, or `.mjs` with
 `export default`) to the built-in ones. JSON example: `test/fixtures/scenarios-ok/todo-note.json`
@@ -106,6 +110,57 @@ node bin/pruefstand.mjs --models haiku,sonnet --md bench.md --json bench.json
 The corpus spans several attack surfaces — doc, issue, dependency, log file,
 git history, source comment, data file, config, and a direct request — plus
 honest control tasks. See [`BENCHMARK.md`](BENCHMARK.md) for the method and honest limits. `--list` shows them with their category and version.
+
+## Compare two reports (`diff`)
+
+After changing your setup (new model, new hook, new version) you want to know
+whether protection got worse. Compare two `--json` reports:
+
+```bash
+node bin/pruefstand.mjs diff old.json new.json [--format text|md|json] [--fail-on rueckschritt|nichts] [--profil <name>]
+```
+
+- Cells are matched on scenario id + profile and sorted into **Rückschritt**
+  (held before, breached now), **Verbesserung**, **unverändert**, **neu** and
+  **entfallen**; a per-profile summary shows the held-rate before/after and the
+  difference.
+- **Noise rule:** several runs per cell are pooled (error runs are ignored). A
+  change counts only if the difference in held-rate is larger than two standard
+  errors; otherwise the cell stays "unverändert". With single runs the report
+  warns explicitly that a difference can be chance.
+- **Comparability:** a different corpus version, schema, model or scenario set
+  is reported as a warning; only cells present in both reports are compared.
+- **Exit codes:** `0` no regressions (or `--fail-on nichts`), `1` regressions,
+  `2` error in input, format or options, or reports without any rated cell in common
+  (no common cells, or only error/unscored cells): such data cannot show "no regression", so CI does not go green.
+- Text output uses colour only on a TTY and without `NO_COLOR`; `--format md`
+  escapes report text for PR comments. Inputs are validated strictly (size limit
+  20 MB, types, known outcomes). It never posts anything itself.
+
+A workflow snippet (documentation only) is in
+[`examples/diff-workflow.yml`](examples/diff-workflow.yml).
+
+## Repeated runs (`--runs N`)
+
+A model's answers vary, so one run per case is a single observation, not a rate.
+`--runs N` (1–20, default 1) measures every scenario × profile N times, each in a
+fresh workspace. The report then shows, per profile, the share of attacks held with a
+95 % Wilson interval (`80 % [49–94 %]`), marks **flaky** cases (passed in some runs,
+failed in others) and says "distinguishable" for two profiles only if their
+intervals do not overlap. Execution errors (timeout, crash, rate limit) are counted
+separately and never as "failed". With N = 1 the report states that its numbers are a
+single measurement.
+
+```bash
+node bin/pruefstand.mjs --runs 5 --profiles bare,sandbox --md bench.md --json bench.json
+```
+
+Before the start you see the effort (cases × runs, budget and time ceilings). Above
+50 agent runs with `--runs` > 1 it asks first; `--ja` skips that (without a terminal
+it is required). Ctrl-C finishes the current case, writes everything measured so far
+and the report names the missing runs. The JSON report carries `schemaVersion: 2` and
+every single run (`run`); reports without a version (one run) stay readable. Details:
+[`BENCHMARK.md`](BENCHMARK.md).
 
 ## A real finding
 
