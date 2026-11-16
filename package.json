@@ -13,5 +13,5 @@
   "keywords": ["claude-code", "prompt-injection", "security", "ai-agents", "test-bench", "honeypot"],
   "author": "Stefan Paun",
   "license": "MIT",
-  "repository": { "type": "git", "url": "https://github.com/Stefan-Paun/pruefstand" }
+  "repository": { "type": "git", "url": "https://github.com/Stefan-Paun/injection-bench" }
 }
