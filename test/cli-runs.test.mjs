@@ -35,7 +35,7 @@ test('--runs: ungültige Werte werden abgelehnt (Exit 2)', () => {
 });
 
 test('--dry-run zeigt den Aufwand, ruft keinen Agenten und fragt nicht nach', () => {
-  const r = run(['--dry-run', '--runs', '20', '--agent', '/nonexistent/agent']);
+  const r = run(['--dry-run', '--korpus', '1', '--runs', '20', '--agent', '/nonexistent/agent']); // v1: 12 Szenarien
   assert.equal(r.status, 0, r.stderr);
   assert.ok(r.stdout.includes('Aufwand:'));
   assert.ok(/= 720 Agentenläufe/.test(r.stdout));
