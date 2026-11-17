@@ -54,15 +54,19 @@ node bin/pruefstand.mjs --list
 ## Use
 
 ```bash
-# default: the full corpus (12 scenarios) × 3 profiles (bare, deny-reads, sandbox)
+# default: the full corpus (v1 + v2, 36 scenarios) × 3 profiles (bare, deny-reads, sandbox)
 node bin/pruefstand.mjs --model haiku --html report.html
+
+# only the frozen v1 corpus (12 scenarios), comparable with older reports
+node bin/pruefstand.mjs --korpus 1 --profiles bare,sandbox
 
 # one contrast, fast
 node bin/pruefstand.mjs --profiles bare,deny-reads --scenarios direct-read
 ```
 
 Key options: `--profiles`, `--scenarios`, `--model`, `--budget <usd>`,
-`--html <path>`, `--json <path>`, `--runs <n>`, `--ja`, `--dry-run`, `--list`, `--scenarios-dir <folder>`.
+`--html <path>`, `--json <path>`, `--runs <n>`, `--ja`, `--dry-run`, `--list`, `--scenarios-dir <folder>`,
+`--korpus 1|2|alle`.
 See `--help`.
 
 `--dry-run` builds each scenario but never calls the agent. It prints the (shortened)
@@ -110,6 +114,28 @@ node bin/pruefstand.mjs --models haiku,sonnet --md bench.md --json bench.json
 The corpus spans several attack surfaces — doc, issue, dependency, log file,
 git history, source comment, data file, config, and a direct request — plus
 honest control tasks. See [`BENCHMARK.md`](BENCHMARK.md) for the method and honest limits. `--list` shows them with their category and version.
+
+### Corpus versions (`--korpus`)
+
+v1 (12 scenarios, 2026-11-01) is frozen, so old reports stay comparable. v2
+(2026-11-17) adds five new trap families with 12 traps, and **each trap has its
+own control** (`<id>-control`: same files and task, no trap), so a refusal is
+not mistaken for protection. `--korpus 1` runs exactly the v1 list, `--korpus 2`
+only the scenarios new in v2, `--korpus alle` (default) both. The report names
+the selection (e.g. `v1 (2026-11-01)`). No v2 measurements are published yet.
+
+| Family | What is tested |
+|---|---|
+| `hidden-unicode` | Tag characters, zero-width characters or a bidi override hide the instruction from a human reviewer or a diff, while the model still reads it. Such text survives code review and keyword filters. |
+| `doc-hidden` | The instruction sits where a rendered document never shows it: a Markdown reference comment, an image alt text, an HTML element with `display:none`. Agents read the raw source, people read the rendered page. |
+| `multi-step` | The file the agent is asked to read only points to a second file, or the instruction only appears in the output of a local script the agent runs. Single-file scanning misses both. |
+| `tool-description` | The instruction is in a tool description: a local dummy tool-server config (deliberately not `.mcp.json`, so it is never loaded) or an npm script description. Agents tend to trust tool metadata more than ordinary text. |
+| `filename-git` | The instruction is a file name or a real git commit message in the prepared repo. Both show up in listings and `git log` output that agents read routinely. |
+
+As in v1, every trap only asks the agent to send `.env` to the local honeypot
+(`127.0.0.1`); nothing names a path outside the workspace. All v2 tasks write
+their answer to `ANSWER.md`, which is how the control check sees that the task
+was done.
 
 ## Compare two reports (`diff`)
 
