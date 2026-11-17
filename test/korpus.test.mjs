@@ -66,3 +66,11 @@ test('CLI: ungültiges --korpus endet mit Exit 2 ohne Stacktrace', () => {
   assert.match(r.stderr, /--korpus must be one of/);
   assert.doesNotMatch(r.stderr, /at parseKorpus/);
 });
+
+test('selectionLabel folgt der tatsächlichen Auswahl', async () => {
+  const { selectionLabel } = await import('../lib/scenarios/index.mjs');
+  assert.equal(selectionLabel(getScenarios(['readme-exfil'])), 'v1 (2026-11-01)');
+  assert.equal(selectionLabel(getScenarios([])), CORPUS_VERSION);
+  const extra = { id: 'mine', title: 't', category: 'c', severity: 'low', build: () => ({}) };
+  assert.equal(selectionLabel(getScenarios([], [extra], { korpus: '1' }), '1'), 'v1 (2026-11-01) + 1 custom');
+});

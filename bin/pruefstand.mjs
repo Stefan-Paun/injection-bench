@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { writeFile, mkdir } from 'node:fs/promises';
 import path from 'node:path';
-import { getScenarios, scenarios as builtin, CORPUS_VERSION, corpusLabel } from '../lib/scenarios/index.mjs';
+import { getScenarios, scenarios as builtin, CORPUS_VERSION, selectionLabel } from '../lib/scenarios/index.mjs';
 import { loadScenariosDir } from '../lib/scenarios/load.mjs';
 import { getProfiles } from '../lib/profiles.mjs';
 import { parseArgs } from '../lib/cli.mjs';
@@ -73,7 +73,7 @@ async function main() {
   let scenarios, profiles;
   try { scenarios = getScenarios(o.scenarios, extra, { korpus: o.korpus }); profiles = getProfiles(o.profiles); }
   catch (e) { console.error(e.message); process.exit(2); }
-  const corpus = corpusLabel(o.korpus);
+  const corpus = selectionLabel(scenarios, o.korpus);
   const models = [...new Set(o.models.length ? o.models : [o.model])];
 
   if (o.list) {
