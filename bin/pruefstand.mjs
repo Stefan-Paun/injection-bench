@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { writeFile, mkdir } from 'node:fs/promises';
 import path from 'node:path';
-import { getScenarios, scenarios as builtin, CORPUS_VERSION } from '../lib/scenarios/index.mjs';
+import { getScenarios, scenarios as builtin, CORPUS_VERSION, corpusLabel } from '../lib/scenarios/index.mjs';
 import { loadScenariosDir } from '../lib/scenarios/load.mjs';
 import { getProfiles } from '../lib/profiles.mjs';
 import { parseArgs } from '../lib/cli.mjs';
@@ -27,6 +27,8 @@ Options:
   --profiles <a,b>   Defence profiles to run   (default: bare,deny-reads,sandbox)
   --scenarios <a,b>  Scenarios to run          (default: all)
   --scenarios-dir <d> Load extra scenarios (.json/.mjs) from a folder
+  --korpus <1|2|alle> Corpus selection: 1 = v1 only (the frozen original list),
+                     2 = only scenarios new in v2, alle = everything (default)
   --model <name>     Model for the agent       (default: haiku)
   --models <a,b>     Benchmark across models    (overrides --model)
   --agent <cmd>      Agent command             (default: claude)
@@ -69,14 +71,15 @@ async function main() {
     catch (e) { console.error(e.message); process.exit(2); }
   }
   let scenarios, profiles;
-  try { scenarios = getScenarios(o.scenarios, extra); profiles = getProfiles(o.profiles); }
+  try { scenarios = getScenarios(o.scenarios, extra, { korpus: o.korpus }); profiles = getProfiles(o.profiles); }
   catch (e) { console.error(e.message); process.exit(2); }
+  const corpus = corpusLabel(o.korpus);
   const models = [...new Set(o.models.length ? o.models : [o.model])];
 
   if (o.list) {
-    console.log(`Corpus: ${CORPUS_VERSION}`);
+    console.log(`Corpus: ${corpus}`);
     console.log('\nScenarios:');
-    for (const s of scenarios) console.log(`  ${s.id.padEnd(26)} [${(s.category ?? '-').padEnd(14)}] ${s.severity.padEnd(7)} ${s.title}`);
+    for (const s of scenarios) console.log(`  ${s.id.padEnd(34)} ${s.seit ? `v${s.seit}` : '--'} [${(s.category ?? '-').padEnd(17)}] ${s.severity.padEnd(7)} ${s.title}`);
     console.log('\nProfiles:');
     for (const p of profiles) console.log(`  ${p.id.padEnd(26)} ${p.description}`);
     return;
@@ -86,7 +89,7 @@ async function main() {
   const est = estimate({ scenarios: scenarios.length, profiles: profiles.length, models: models.length, runs: o.runs, budgetUsd: o.budget, timeoutMs: o.timeout });
   const total = scenarios.length * profiles.length * models.length * runs;
   const modelNote = models.length > 1 ? ` × ${models.length} models` : '';
-  console.log(`\n  pruefstand · corpus ${CORPUS_VERSION}`);
+  console.log(`\n  pruefstand · corpus ${corpus}`);
   console.log(`  ${scenarios.length} scenarios × ${profiles.length} profiles${modelNote} = ${est.perRun} cases${o.runs > 1 ? ` × ${o.runs} runs = ${est.total} agent runs` : ' = ' + est.total + ' runs'}${o.dryRun ? ' (dry run)' : ''}`);
   if (o.runs > 1) console.log(`  Aufwand: ${estimateText(est, { runs: o.runs })}`);
   console.log('');
@@ -135,9 +138,9 @@ async function main() {
   process.stdout.write(runs > 1 ? repeatsConsole(agg) : toConsole(results));
   if (out.aborted) console.log(`\n  ABGEBROCHEN: ${agg.missingRuns} von ${out.planned} geplanten Läufen fehlen.`);
 
-  const bench = benchmark(results, { corpusVersion: CORPUS_VERSION, models });
+  const bench = benchmark(results, { corpusVersion: corpus, models });
   console.log('─'.repeat(60));
-  console.log(`  Benchmark · corpus ${CORPUS_VERSION} · ${bench.attacksPerRun} attacks, ${bench.controlsPerRun} controls`);
+  console.log(`  Benchmark · corpus ${corpus} · ${bench.attacksPerRun} attacks, ${bench.controlsPerRun} controls`);
   for (const c of bench.cells) {
     const score = c.resilienceScore == null ? ' — ' : `${String(c.resilienceScore).padStart(3)}/100`;
     const tag = models.length > 1 ? `${c.model} · ` : '';
@@ -147,8 +150,8 @@ async function main() {
   const costUsd = results.reduce((a, r) => a + (r.costUsd || 0), 0);
   console.log(`\n  Total: ${costUsd.toFixed(3)} USD\n`);
 
-  if (o.html) { await ensureDir(o.html); await writeFile(o.html, toHtml(results, { when: new Date().toISOString().slice(0, 16).replace('T', ' '), model: models.join(', '), costUsd, corpusVersion: CORPUS_VERSION, repeats: agg })); console.log(`  HTML:  ${o.html}`); }
-  if (o.json) { await ensureDir(o.json); await writeFile(o.json, JSON.stringify(buildReport({ corpusVersion: CORPUS_VERSION, benchmark: bench, results, runsPlanned: runs, aborted: out.aborted }), null, 2)); console.log(`  JSON:  ${o.json}`); }
+  if (o.html) { await ensureDir(o.html); await writeFile(o.html, toHtml(results, { when: new Date().toISOString().slice(0, 16).replace('T', ' '), model: models.join(', '), costUsd, corpusVersion: corpus, repeats: agg })); console.log(`  HTML:  ${o.html}`); }
+  if (o.json) { await ensureDir(o.json); await writeFile(o.json, JSON.stringify(buildReport({ corpusVersion: corpus, benchmark: bench, results, runsPlanned: runs, aborted: out.aborted }), null, 2)); console.log(`  JSON:  ${o.json}`); }
   if (o.md) { await ensureDir(o.md); await writeFile(o.md, toMarkdown(bench, agg)); console.log(`  MD:    ${o.md}`); }
 
   process.exit(breaches(results).length ? 1 : out.aborted ? 130 : 0);
