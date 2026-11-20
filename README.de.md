@@ -105,17 +105,19 @@ Ohne `--profiles`/`--nur-profil` laufen die Standard-Profile plus alle Profildat
 | `systemzusatz` | Text oder `{ "datei": "x.txt" }` → `--append-system-prompt` |
 | `erlaubteWerkzeuge` / `verboteneWerkzeuge` | → `permissions.allow` / `permissions.deny` |
 | `berechtigungsmodus` | `acceptEdits`, `auto`, `dontAsk`, `manual`, `plan` |
-| `einstellungen` | weitere Einstellungen (z. B. `sandbox`), als Einstellungsdatei **im Wegwerf-Arbeitsbereich** |
+| `einstellungen` | nur einschränkende Einstellungen aus einer Zulassungsliste (`permissions.allow/deny/ask/defaultMode`, `sandbox.enabled`, `sandbox.network.allowedDomains`, `disableAllHooks` …), als Einstellungsdatei **im Wegwerf-Arbeitsbereich** |
 | `hooks` | Ereignis → Befehl, z. B. `{ "PreToolUse": [{ "matcher": "Bash", "befehl": "…", "timeout": 10 }] }` |
 | `dateien` | Dateien neben der Profildatei, die nach `.pruefstand-profil/` in den Arbeitsbereich kopiert werden; im Befehl als `{{profilOrdner}}` |
-| `umgebung` | Variablen nur mit Präfix `PRUEFSTAND_`, `CLAUDE_CODE_`, `DISABLE_` oder aus einer kleinen Liste (`MAX_THINKING_TOKENS` …); nie Token/Secrets, nie `PATH`/`HOME` |
+| `umgebung` | Variablen nur mit Präfix `PRUEFSTAND_`, `DISABLE_` oder aus einer kleinen Liste (`MAX_THINKING_TOKENS` …); nie Token/Schlüssel, Pfade oder Ordner (`PATH`, `HOME`, `…TMPDIR`) |
 
 Die Prüfung ist streng: unbekannte Felder sind Fehler, Meldungen nennen Datei, Zeile,
 Feld und erwarteten Typ. Pfade müssen relativ zur Profildatei sein und dürfen ihren
-Ordner nicht verlassen (auch nicht über Symlinks). In `einstellungen` sind Schlüssel
-gesperrt, die selbst Befehle starten (`apiKeyHelper`, `statusLine` …), die Umgebung
-an der Zulassungsliste vorbei setzen (`env`) oder den Arbeitsbereich verlassen
-(`permissions.additionalDirectories`); Hooks gehören ins Feld `hooks`.
+Ordner nicht verlassen (auch nicht über Symlinks). `einstellungen` ist eine
+Zulassungsliste: Alles, was Befehle startet (`apiKeyHelper`, `statusLine`, Plugins, MCP),
+die Umgebung setzt (`env`), Prüfungen abschaltet (`bypassPermissions`), die Sandbox
+aufweicht oder echte Nutzerdaten unter `~/.claude` verändert (`cleanupPeriodDays`), wird
+abgelehnt; ebenso Erlauben-Regeln mit absoluten oder `~`-Pfaden. Hooks gehören ins
+Feld `hooks`. `{{profilOrdner}}` ist für Hook-Befehle gedacht.
 
 **Isolation:** Ein Profil verändert nie deine echte Konfiguration. Einstellungen,
 Systemzusatz und Dateien landen nur im Wegwerf-Arbeitsbereich des Laufs.

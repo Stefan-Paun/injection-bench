@@ -88,6 +88,8 @@ async function main() {
   let scenarios, profiles;
   try { scenarios = getScenarios(o.scenarios, extra, { korpus: o.korpus }); profiles = getProfiles(o.nurProfil.length ? o.nurProfil : o.profiles, extraProfiles); }
   catch (e) { console.error(e.message); process.exit(2); }
+  const unused = extraProfiles.filter((p) => !profiles.includes(p));
+  if (unused.length) console.error(`  Hinweis: Profil ${unused.map((p) => `"${p.id}"`).join(', ')} geladen, aber nicht ausgewählt (--profiles/--nur-profil).`);
   const corpus = selectionLabel(scenarios, o.korpus);
   const models = [...new Set(o.models.length ? o.models : [o.model])];
 

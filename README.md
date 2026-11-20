@@ -113,7 +113,7 @@ Fields (German names, like the rest of the format): `schemaVersion` (1), `name`,
 `titel`, `beschreibung`, `systemzusatz` (text or `{ "datei": … }` → `--append-system-prompt`),
 `erlaubteWerkzeuge`/`verboteneWerkzeuge` (→ `permissions.allow`/`deny`),
 `berechtigungsmodus` (`acceptEdits`, `auto`, `dontAsk`, `manual`, `plan`), `einstellungen`
-(extra settings, written **into the throwaway workspace** only), `hooks` (event → command),
+(an allowlist of restricting settings only, written **into the throwaway workspace**), `hooks` (event → command),
 `dateien` (files next to the profile, copied to `.pruefstand-profil/` in the workspace,
 referenced as `{{profilOrdner}}`), `umgebung` (allowlisted variables only). Validation is
 strict (unknown fields fail, errors name file, line, field and expected type; paths may

@@ -7,7 +7,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from '../lib/cli.mjs';
 import { runProfileCli } from '../lib/profile-cli.mjs';
-import { loadProfileFile } from '../lib/profile-format.mjs';
+import { loadProfileFile, displaySource } from '../lib/profile-format.mjs';
 import { runCase } from '../lib/runner.mjs';
 import { getScenarios } from '../lib/scenarios/index.mjs';
 import { toMarkdown, benchmark } from '../lib/report/benchmark.mjs';
@@ -174,7 +174,8 @@ test('Isolation: Profil-Lauf schreibt nichts außerhalb des Wegwerf-Arbeitsberei
     assert.deepEqual(await readdir(home), [], 'nichts im Heimatverzeichnis');
     assert.deepEqual(await tree(EX), exBefore, 'Profilordner unverändert');
     await assert.rejects(stat(ws), 'Arbeitsbereich ist danach gelöscht');
-    assert.equal(r.profileSource, NETZ);
+    assert.equal(r.profileSource, displaySource(NETZ));
+    assert.ok(!path.isAbsolute(r.profileSource), 'kein absoluter Pfad im Bericht');
     assert.deepEqual(r.profileCommands, ['PreToolUse[Bash]: node "{{profilOrdner}}/netz-hook.mjs"']);
   } finally {
     if (saved.HOME === undefined) delete process.env.HOME; else process.env.HOME = saved.HOME;

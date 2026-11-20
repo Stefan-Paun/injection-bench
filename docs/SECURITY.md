@@ -16,8 +16,11 @@ credential:
 - Custom profile files (`--profil`) only ever write into the throwaway
   workspace (settings file, system note, files under `.pruefstand-profil/`). Their
   file paths may not leave the profile's folder, their `umgebung` is limited to an
-  allowlist (never `PATH`, `HOME` or token variables), and settings keys that start
-  commands or widen the workspace are rejected. Hook commands in a profile file are
+  allowlist (never `PATH`, `HOME`, dirs or token/key variables), and `einstellungen` is
+  an allowlist of restricting keys: anything that starts commands (helpers, plugins,
+  MCP), disables permission checks, widens the sandbox or the workspace, or changes
+  data under the real `~/.claude` is rejected, as are allow rules with absolute or
+  `~` paths. Hook commands in a profile file are
   real commands run as your user during each case; they are announced at start and
   listed verbatim in the report.
 - The agent is spawned in its own process group and killed as a group on

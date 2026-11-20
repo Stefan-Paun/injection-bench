@@ -58,15 +58,16 @@ test('Schema: gültiges Minimalprofil und jedes Feld im erzeugten Aufruf', async
       systemzusatz: { datei: 'zusatz.txt' },
       erlaubteWerkzeuge: ['Read'], verboteneWerkzeuge: ['WebFetch'],
       berechtigungsmodus: 'dontAsk',
-      einstellungen: { permissions: { allow: ['Bash'] }, sandbox: { enabled: true } },
+      einstellungen: { permissions: { allow: ['Bash'], deny: ['Read(//**/.ssh/**)'], defaultMode: 'plan' }, sandbox: { enabled: true, network: { allowedDomains: [] } }, disableAllHooks: false },
       hooks: { PreToolUse: [{ matcher: 'Bash', befehl: 'node "{{profilOrdner}}/hooks/pruefe.mjs"', timeout: 5 }], Stop: 'true' },
       dateien: ['hooks/pruefe.mjs'],
       umgebung: { PRUEFSTAND_MODUS: 'streng', MAX_THINKING_TOKENS: '1024' },
     });
     const p = await loadProfileFile(f);
-    assert.equal(p.id, 'mein'); assert.equal(p.title, 'Mein Setup'); assert.equal(p.source, f);
-    assert.deepEqual(p.settings.permissions, { allow: ['Bash', 'Read'], deny: ['WebFetch'] });
-    assert.deepEqual(p.settings.sandbox, { enabled: true });
+    assert.equal(p.id, 'mein'); assert.equal(p.title, 'Mein Setup');
+    assert.equal(p.source, 'p.json', 'außerhalb des aktuellen Ordners nur der Dateiname, kein absoluter Pfad');
+    assert.deepEqual(p.settings.permissions, { allow: ['Bash', 'Read'], deny: ['Read(//**/.ssh/**)', 'WebFetch'], defaultMode: 'plan' });
+    assert.deepEqual(p.settings.sandbox, { enabled: true, network: { allowedDomains: [] } });
     assert.deepEqual(p.settings.hooks.Stop, [{ hooks: [{ type: 'command', command: 'true' }] }]);
     assert.deepEqual(commandLines(p), ['PreToolUse[Bash]: node "{{profilOrdner}}/hooks/pruefe.mjs"', 'Stop: true']);
     assert.deepEqual(Object.keys(p.files), ['hooks/pruefe.mjs']);
@@ -110,8 +111,21 @@ test('Schema: kaputte Dateien geben verständliche Fehler mit Feld und Zeile', a
       [{ ...base, einstellungen: [] }, /einstellungen: expected object, got array/],
       [{ ...base, einstellungen: { hooks: {} } }, /einstellungen\.hooks: use the top-level "hooks"/],
       [{ ...base, einstellungen: { env: { A: '1' } } }, /einstellungen\.env: use "umgebung"/],
-      [{ ...base, einstellungen: { apiKeyHelper: 'x' } }, /einstellungen\.apiKeyHelper: runs a command/],
-      [{ ...base, einstellungen: { permissions: { additionalDirectories: ['..'] } } }, /additionalDirectories: would let the agent leave/],
+      [{ ...base, einstellungen: { apiKeyHelper: 'x' } }, /einstellungen\.apiKeyHelper: not allowed in a profile/],
+      [{ ...base, einstellungen: { enabledPlugins: { x: true } } }, /einstellungen\.enabledPlugins: not allowed/],
+      [{ ...base, einstellungen: { cleanupPeriodDays: 0 } }, /einstellungen\.cleanupPeriodDays: not allowed/],
+      [{ ...base, einstellungen: { permissions: { additionalDirectories: ['..'] } } }, /permissions\.additionalDirectories: not allowed/],
+      [{ ...base, einstellungen: { permissions: { defaultMode: 'bypassPermissions' } } }, /permissions\.defaultMode: expected one of/],
+      [{ ...base, einstellungen: { permissions: { allow: ['Write(~/.claude/**)'] } } }, /permissions\.allow\[0\]: absolute or home paths/],
+      [{ ...base, einstellungen: { permissions: { ask: ['Edit(//home/**)'] } } }, /permissions\.ask\[0\]: absolute or home paths/],
+      [{ ...base, erlaubteWerkzeuge: ['Read(/etc/**)'] }, /erlaubteWerkzeuge\[0\]: absolute or home paths/],
+      [{ ...base, einstellungen: { sandbox: { filesystem: { allowWrite: ['~/'] } } } }, /sandbox\.filesystem: not allowed/],
+      [{ ...base, einstellungen: { sandbox: { excludedCommands: ['curl'] } } }, /sandbox\.excludedCommands: not allowed/],
+      [{ ...base, einstellungen: { sandbox: { allowUnsandboxedCommands: true } } }, /allowUnsandboxedCommands: only false/],
+      [{ ...base, einstellungen: { sandbox: { network: { allowUnixSockets: ['/x'] } } } }, /network\.allowUnixSockets: not allowed/],
+      [{ ...base, systemzusatz: 'siehe {{profilOrdner}}' }, /systemzusatz: \{\{profilOrdner\}\} is used/],
+      [{ ...base, umgebung: { CLAUDE_CODE_TMPDIR: '/x' } }, /umgebung\.CLAUDE_CODE_TMPDIR: not allowed/],
+      [{ ...base, umgebung: { PRUEFSTAND_CLIENT_KEY_PASSPHRASE: 'x' } }, /not allowed/],
       [{ ...base, hooks: { Irgendwann: 'x' } }, /hooks\.Irgendwann: unknown hook event/],
       [{ ...base, hooks: { PreToolUse: [] } }, /hooks\.PreToolUse: expected a command string or a non-empty array/],
       [{ ...base, hooks: { PreToolUse: [{ command: 'x' }] } }, /hooks\.PreToolUse\[0\]\.command: unknown field/],
@@ -163,6 +177,11 @@ test('Pfade dürfen nicht aus dem Ordner der Profildatei ausbrechen', async () =
       const f = await profileFile(dir, def);
       await assert.rejects(loadProfileFile(f), re, JSON.stringify(def));
     }
+    await assert.rejects(loadProfileFile(await profileFile(dir, { ...base, dateien: ['sub/ok.txt', './sub/ok.txt'] })), /dateien\[1\]: listed twice/);
+    await writeFile(path.join(dir, '..x.txt'), 'dots');
+    assert.deepEqual((await loadProfileFile(await profileFile(dir, { ...base, dateien: ['..x.txt'] }))).files, { '..x.txt': 'dots' });
+    await symlink(path.join(dir, 'p.json'), path.join(dir, 'link.json'));
+    await assert.rejects(loadProfileFile(path.join(dir, 'link.json')), /may not be a symlink/);
     const ok = await loadProfileFile(await profileFile(dir, { ...base, dateien: ['sub/ok.txt'] }));
     assert.deepEqual(ok.files, { 'sub/ok.txt': 'ok' });
     // ohne Profildatei (eingebaut) keine Dateien
