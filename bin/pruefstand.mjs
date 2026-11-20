@@ -3,7 +3,8 @@ import { writeFile, mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { getScenarios, scenarios as builtin, CORPUS_VERSION, selectionLabel } from '../lib/scenarios/index.mjs';
 import { loadScenariosDir } from '../lib/scenarios/load.mjs';
-import { getProfiles } from '../lib/profiles.mjs';
+import { getProfiles, profiles as builtinProfiles } from '../lib/profiles.mjs';
+import { loadProfileFiles, commandLines } from '../lib/profile-format.mjs';
 import { parseArgs } from '../lib/cli.mjs';
 import { runCase } from '../lib/runner.mjs';
 import { toConsole, scoreboard, breaches } from '../lib/report/summary.mjs';
@@ -22,9 +23,13 @@ Fake secrets, a local honeypot, a throwaway workspace: nothing leaves your box.
 Usage:
   pruefstand [options]
   pruefstand diff <old.json> <new.json>   compare two reports (see: pruefstand diff --help)
+  pruefstand profile [pruefe <datei>]     list profiles / check a profile file (see: pruefstand profile --help)
 
 Options:
-  --profiles <a,b>   Defence profiles to run   (default: bare,deny-reads,sandbox)
+  --profiles <a,b>   Defence profiles to run   (default: bare,deny-reads,sandbox + all --profil files)
+  --profil <datei>   Add your own profile from a JSON file (repeatable); hooks in it
+                     run inside each run's throwaway workspace
+  --nur-profil <name> Run only this profile (repeatable; instead of --profiles)
   --scenarios <a,b>  Scenarios to run          (default: all)
   --scenarios-dir <d> Load extra scenarios (.json/.mjs) from a folder
   --korpus <1|2|alle> Corpus selection: 1 = v1 only (the frozen original list),
@@ -60,6 +65,11 @@ async function main() {
     process.exitCode = await runDiff(process.argv.slice(3));
     return;
   }
+  if (process.argv[2] === 'profile') {
+    const { runProfileCli } = await import('../lib/profile-cli.mjs');
+    process.exitCode = await runProfileCli(process.argv.slice(3));
+    return;
+  }
   let o;
   try { o = parseArgs(process.argv.slice(2)); }
   catch (e) { console.error(e.message); process.exit(2); }
@@ -70,9 +80,16 @@ async function main() {
     try { extra = await loadScenariosDir(o.scenariosDir, { builtinIds: builtin.map((s) => s.id) }); }
     catch (e) { console.error(e.message); process.exit(2); }
   }
+  let extraProfiles = [];
+  if (o.profilFiles.length) {
+    try { extraProfiles = await loadProfileFiles(o.profilFiles, { builtinIds: Object.keys(builtinProfiles) }); }
+    catch (e) { console.error(e.message); process.exit(2); }
+  }
   let scenarios, profiles;
-  try { scenarios = getScenarios(o.scenarios, extra, { korpus: o.korpus }); profiles = getProfiles(o.profiles); }
+  try { scenarios = getScenarios(o.scenarios, extra, { korpus: o.korpus }); profiles = getProfiles(o.nurProfil.length ? o.nurProfil : o.profiles, extraProfiles); }
   catch (e) { console.error(e.message); process.exit(2); }
+  const unused = extraProfiles.filter((p) => !profiles.includes(p));
+  if (unused.length) console.error(`  Hinweis: Profil ${unused.map((p) => `"${p.id}"`).join(', ')} geladen, aber nicht ausgewählt (--profiles/--nur-profil).`);
   const corpus = selectionLabel(scenarios, o.korpus);
   const models = [...new Set(o.models.length ? o.models : [o.model])];
 
@@ -81,7 +98,8 @@ async function main() {
     console.log('\nScenarios:');
     for (const s of scenarios) console.log(`  ${s.id.padEnd(34)} ${s.seit ? `v${s.seit}` : '--'} [${(s.category ?? '-').padEnd(17)}] ${s.severity.padEnd(7)} ${s.title}`);
     console.log('\nProfiles:');
-    for (const p of profiles) console.log(`  ${p.id.padEnd(26)} ${p.description}`);
+    for (const p of profiles) console.log(`  ${p.id.padEnd(26)} ${p.description}${p.source && p.source !== 'eingebaut' ? `  [Datei: ${p.source}]` : ''}`);
+    commandNotice(profiles);
     return;
   }
 
@@ -92,6 +110,7 @@ async function main() {
   console.log(`\n  pruefstand · corpus ${corpus}`);
   console.log(`  ${scenarios.length} scenarios × ${profiles.length} profiles${modelNote} = ${est.perRun} cases${o.runs > 1 ? ` × ${o.runs} runs = ${est.total} agent runs` : ' = ' + est.total + ' runs'}${o.dryRun ? ' (dry run)' : ''}`);
   if (o.runs > 1) console.log(`  Aufwand: ${estimateText(est, { runs: o.runs })}`);
+  commandNotice(profiles);
   console.log('');
 
   if (needsConfirmation({ total: est.total, runs: o.runs, yes: o.yes, dryRun: o.dryRun })) {
@@ -150,11 +169,27 @@ async function main() {
   const costUsd = results.reduce((a, r) => a + (r.costUsd || 0), 0);
   console.log(`\n  Total: ${costUsd.toFixed(3)} USD\n`);
 
-  if (o.html) { await ensureDir(o.html); await writeFile(o.html, toHtml(results, { when: new Date().toISOString().slice(0, 16).replace('T', ' '), model: models.join(', '), costUsd, corpusVersion: corpus, repeats: agg })); console.log(`  HTML:  ${o.html}`); }
+  if (o.html) { await ensureDir(o.html); await writeFile(o.html, toHtml(results, { when: new Date().toISOString().slice(0, 16).replace('T', ' '), model: models.join(', '), costUsd, corpusVersion: corpus, repeats: agg, profileCommands: commandMap(profiles) })); console.log(`  HTML:  ${o.html}`); }
   if (o.json) { await ensureDir(o.json); await writeFile(o.json, JSON.stringify(buildReport({ corpusVersion: corpus, benchmark: bench, results, runsPlanned: runs, aborted: out.aborted }), null, 2)); console.log(`  JSON:  ${o.json}`); }
-  if (o.md) { await ensureDir(o.md); await writeFile(o.md, toMarkdown(bench, agg)); console.log(`  MD:    ${o.md}`); }
+  if (o.md) { await ensureDir(o.md); await writeFile(o.md, toMarkdown(bench, agg, { profileCommands: commandMap(profiles) })); console.log(`  MD:    ${o.md}`); }
 
   process.exit(breaches(results).length ? 1 : out.aborted ? 130 : 0);
+}
+
+// Profildateien können Befehle (Hooks) mitbringen: vor dem Start wörtlich zeigen.
+function commandNotice(profiles) {
+  for (const p of profiles) {
+    const lines = commandLines(p);
+    if (!lines.length || p.source === 'eingebaut') continue;
+    console.log(`\n  Hinweis: Profil "${p.id}" (Datei ${p.source}) enthält Befehle, die in jedem Lauf`);
+    console.log('  innerhalb des Wegwerf-Arbeitsbereichs ausgeführt werden:');
+    for (const l of lines) console.log(`    ${l}`);
+  }
+}
+
+// Für den Bericht: Profil → { source, commands } (nur Profile mit Befehlen).
+function commandMap(profiles) {
+  return Object.fromEntries(profiles.filter((p) => p.commands?.length).map((p) => [p.id, { title: p.title, source: p.source, commands: commandLines(p) }]));
 }
 
 async function ensureDir(p) { await mkdir(path.dirname(path.resolve(p)), { recursive: true }); }

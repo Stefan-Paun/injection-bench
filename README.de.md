@@ -68,7 +68,7 @@ node bin/pruefstand.mjs --profiles bare,deny-reads --scenarios direct-read
 
 Wichtige Optionen: `--profiles`, `--scenarios`, `--model`, `--budget <usd>`,
 `--html`, `--json`, `--runs <n>`, `--ja`, `--dry-run`, `--list`, `--scenarios-dir <ordner>`,
-`--korpus 1|2|alle`. Siehe `--help`.
+`--korpus 1|2|alle`, `--profil <datei>`, `--nur-profil <name>`. Siehe `--help`.
 
 `--dry-run` baut jedes Szenario, ruft aber nie den Agenten auf. Ausgegeben werden der
 (gekürzte) Prompt und die Dateiliste; der Wegwerf-Workspace wird danach gelöscht, daher
@@ -81,6 +81,49 @@ Achtung: `.mjs` wird importiert, der Code läuft – nur vertrauenswürdige Ordn
 
 Der Prozess endet mit Exit-Code ≠ 0, wenn ein Nicht-Kontroll-Szenario
 durchbrochen wurde – gut als CI-Schranke.
+
+## Eigenes Profil (`--profil`)
+
+Du kannst dein eigenes Setup messen, ohne Code zu ändern: Ein Schutzprofil steht in
+einer kleinen JSON-Datei und läuft neben den eingebauten mit. Die eingebauten Profile
+stehen im selben Format in `lib/profiles/eingebaut.json`.
+
+```bash
+node bin/pruefstand.mjs profile pruefe examples/profile/netz-hook.json   # nur prüfen
+node bin/pruefstand.mjs profile --profil examples/profile/netz-hook.json # alle Profile mit Herkunft
+node bin/pruefstand.mjs --profil examples/profile/netz-hook.json --profil examples/profile/streng.json --dry-run
+node bin/pruefstand.mjs --profil examples/profile/netz-hook.json --nur-profil netz-hook,bare
+```
+
+Ohne `--profiles`/`--nur-profil` laufen die Standard-Profile plus alle Profildateien.
+
+| Feld | Bedeutung |
+|---|---|
+| `schemaVersion` | immer `1` |
+| `name` | `a-z0-9-`, darf kein eingebautes Profil überschreiben |
+| `titel`, `beschreibung` | Anzeige im Bericht (`titel` optional) |
+| `systemzusatz` | Text oder `{ "datei": "x.txt" }` → `--append-system-prompt` |
+| `erlaubteWerkzeuge` / `verboteneWerkzeuge` | → `permissions.allow` / `permissions.deny` |
+| `berechtigungsmodus` | `acceptEdits`, `auto`, `dontAsk`, `manual`, `plan` |
+| `einstellungen` | nur einschränkende Einstellungen aus einer Zulassungsliste (`permissions.allow/deny/ask/defaultMode`, `sandbox.enabled`, `sandbox.network.allowedDomains`, `disableAllHooks` …), als Einstellungsdatei **im Wegwerf-Arbeitsbereich** |
+| `hooks` | Ereignis → Befehl, z. B. `{ "PreToolUse": [{ "matcher": "Bash", "befehl": "…", "timeout": 10 }] }` |
+| `dateien` | Dateien neben der Profildatei, die nach `.pruefstand-profil/` in den Arbeitsbereich kopiert werden; im Befehl als `{{profilOrdner}}` |
+| `umgebung` | Variablen nur mit Präfix `PRUEFSTAND_`, `DISABLE_` oder aus einer kleinen Liste (`MAX_THINKING_TOKENS` …); nie Token/Schlüssel, Pfade oder Ordner (`PATH`, `HOME`, `…TMPDIR`) |
+
+Die Prüfung ist streng: unbekannte Felder sind Fehler, Meldungen nennen Datei, Zeile,
+Feld und erwarteten Typ. Pfade müssen relativ zur Profildatei sein und dürfen ihren
+Ordner nicht verlassen (auch nicht über Symlinks). `einstellungen` ist eine
+Zulassungsliste: Alles, was Befehle startet (`apiKeyHelper`, `statusLine`, Plugins, MCP),
+die Umgebung setzt (`env`), Prüfungen abschaltet (`bypassPermissions`), die Sandbox
+aufweicht oder echte Nutzerdaten unter `~/.claude` verändert (`cleanupPeriodDays`), wird
+abgelehnt; ebenso Erlauben-Regeln mit absoluten oder `~`-Pfaden. Hooks gehören ins
+Feld `hooks`. `{{profilOrdner}}` ist für Hook-Befehle gedacht.
+
+**Isolation:** Ein Profil verändert nie deine echte Konfiguration. Einstellungen,
+Systemzusatz und Dateien landen nur im Wegwerf-Arbeitsbereich des Laufs.
+**Hook-Befehle sind echte Befehle**: Sie laufen während jedes Laufs (mit deinem
+Benutzer), werden beim Start angekündigt und stehen wörtlich im Bericht. Lade nur
+Profildateien, denen du vertraust. Beispiele: `examples/profile/`.
 
 ## Benchmark
 

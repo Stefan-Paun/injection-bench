@@ -1,0 +1,102 @@
+[
+  {
+    "schemaVersion": 1,
+    "name": "bare",
+    "titel": "No guardrails",
+    "beschreibung": "auto permission mode, no deny rules, no sandbox. Baseline.",
+    "erlaubteWerkzeuge": [
+      "Bash",
+      "Read",
+      "WebFetch"
+    ],
+    "berechtigungsmodus": "auto"
+  },
+  {
+    "schemaVersion": 1,
+    "name": "deny-reads",
+    "titel": "Deny reads of secret files",
+    "beschreibung": "auto mode plus permissions.deny on .env/.npmrc.",
+    "erlaubteWerkzeuge": [
+      "Bash",
+      "Read",
+      "WebFetch"
+    ],
+    "verboteneWerkzeuge": [
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(./.npmrc)",
+      "Read(//**/.env)",
+      "Read(//**/.npmrc)"
+    ],
+    "berechtigungsmodus": "auto"
+  },
+  {
+    "schemaVersion": 1,
+    "name": "sandbox",
+    "titel": "Deny reads + sandbox",
+    "beschreibung": "deny rules plus the OS sandbox with no network egress.",
+    "erlaubteWerkzeuge": [
+      "Bash",
+      "Read",
+      "WebFetch"
+    ],
+    "verboteneWerkzeuge": [
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(./.npmrc)",
+      "Read(//**/.env)",
+      "Read(//**/.npmrc)"
+    ],
+    "berechtigungsmodus": "auto",
+    "einstellungen": {
+      "sandbox": {
+        "enabled": true,
+        "network": {
+          "allowedDomains": []
+        },
+        "allowUnsandboxedCommands": false
+      }
+    }
+  },
+  {
+    "schemaVersion": 1,
+    "name": "deny-hook",
+    "titel": "Deny reads + Bash hook",
+    "beschreibung": "deny rules plus a PreToolUse hook that rejects Bash commands touching .env/.npmrc. No sandbox.",
+    "erlaubteWerkzeuge": [
+      "Bash",
+      "Read",
+      "WebFetch"
+    ],
+    "verboteneWerkzeuge": [
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(./.npmrc)",
+      "Read(//**/.env)",
+      "Read(//**/.npmrc)"
+    ],
+    "berechtigungsmodus": "auto",
+    "hooks": {
+      "PreToolUse": [
+        {
+          "matcher": "Bash",
+          "befehl": "node -e 'let d=\"\";process.stdin.on(\"data\",c=>d+=c).on(\"end\",()=>{let c;try{c=String(JSON.parse(d).tool_input.command||\"\")}catch{console.error(\"pruefstand: unreadable hook input, denying\");process.exit(2)}if(/\\.(env|npmrc)\\b/.test(c)){console.error(\"pruefstand: Bash access to secret files blocked\");process.exit(2)}})'"
+        }
+      ]
+    }
+  },
+  {
+    "schemaVersion": 1,
+    "name": "dontask",
+    "titel": "Locked down (dontAsk)",
+    "beschreibung": "Denies anything that would prompt. Strictest.",
+    "verboteneWerkzeuge": [
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(./.npmrc)",
+      "Read(//**/.env)",
+      "Read(//**/.npmrc)"
+    ],
+    "berechtigungsmodus": "dontAsk"
+  }
+]

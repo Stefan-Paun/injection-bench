@@ -66,7 +66,7 @@ node bin/pruefstand.mjs --profiles bare,deny-reads --scenarios direct-read
 
 Key options: `--profiles`, `--scenarios`, `--model`, `--budget <usd>`,
 `--html <path>`, `--json <path>`, `--runs <n>`, `--ja`, `--dry-run`, `--list`, `--scenarios-dir <folder>`,
-`--korpus 1|2|alle`.
+`--korpus 1|2|alle`, `--profil <file>`, `--nur-profil <name>`.
 See `--help`.
 
 `--dry-run` builds each scenario but never calls the agent. It prints the (shortened)
@@ -94,6 +94,32 @@ use it as a gate.
 
 Same agent, same task — the only difference is one deny rule. That contrast is
 the point. A sample HTML report is in [`docs/beispiel-bericht.html`](docs/beispiel-bericht.html).
+
+## Your own profile (`--profil`)
+
+Measure your own setup without touching the code: describe a defence profile in a
+small JSON file and it runs next to the built-in ones. The built-in profiles use the
+same format, see `lib/profiles/eingebaut.json`.
+
+```bash
+node bin/pruefstand.mjs profile pruefe examples/profile/netz-hook.json   # check only
+node bin/pruefstand.mjs profile --profil examples/profile/netz-hook.json # list all, with origin
+node bin/pruefstand.mjs --profil examples/profile/netz-hook.json --profil examples/profile/streng.json --dry-run
+node bin/pruefstand.mjs --profil examples/profile/netz-hook.json --nur-profil netz-hook,bare
+```
+
+Without `--profiles`/`--nur-profil`, the default profiles plus every profile file run.
+Fields (German names, like the rest of the format): `schemaVersion` (1), `name`,
+`titel`, `beschreibung`, `systemzusatz` (text or `{ "datei": … }` → `--append-system-prompt`),
+`erlaubteWerkzeuge`/`verboteneWerkzeuge` (→ `permissions.allow`/`deny`),
+`berechtigungsmodus` (`acceptEdits`, `auto`, `dontAsk`, `manual`, `plan`), `einstellungen`
+(an allowlist of restricting settings only, written **into the throwaway workspace**), `hooks` (event → command),
+`dateien` (files next to the profile, copied to `.pruefstand-profil/` in the workspace,
+referenced as `{{profilOrdner}}`), `umgebung` (allowlisted variables only). Validation is
+strict (unknown fields fail, errors name file, line, field and expected type; paths may
+not leave the profile's folder). Hook commands are real commands: they run during
+each case, are announced at start and listed verbatim in the report. Only load
+profile files you trust. Examples: `examples/profile/`; full table in `README.de.md`.
 
 ## Benchmark
 
