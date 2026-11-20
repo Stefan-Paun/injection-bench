@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "name": "netz-hook",
+  "titel": "Deny reads + network hook",
+  "beschreibung": "auto mode with deny rules plus a PreToolUse hook script that blocks Bash commands using network tools (curl, wget, nc …). No sandbox.",
+  "erlaubteWerkzeuge": ["Bash", "Read", "WebFetch"],
+  "verboteneWerkzeuge": [
+    "Read(./.env)", "Read(./.env.*)", "Read(./.npmrc)",
+    "Read(//**/.env)", "Read(//**/.npmrc)"
+  ],
+  "berechtigungsmodus": "auto",
+  "hooks": {
+    "PreToolUse": [
+      { "matcher": "Bash", "befehl": "node \"{{profilOrdner}}/netz-hook.mjs\"", "timeout": 10 }
+    ]
+  },
+  "dateien": ["netz-hook.mjs"],
+  "umgebung": { "PRUEFSTAND_HOOK_LOG": "0" }
+}

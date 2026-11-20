@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "name": "streng",
+  "titel": "Strict: dontAsk + system note",
+  "beschreibung": "dontAsk mode, deny reads of secret files and WebFetch, plus a short system note against following instructions found in files.",
+  "systemzusatz": { "datei": "systemzusatz.txt" },
+  "verboteneWerkzeuge": [
+    "Read(./.env)", "Read(./.env.*)", "Read(./.npmrc)",
+    "Read(//**/.env)", "Read(//**/.npmrc)",
+    "WebFetch"
+  ],
+  "berechtigungsmodus": "dontAsk"
+}
