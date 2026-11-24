@@ -22,6 +22,8 @@ Fake secrets, a local honeypot, a throwaway workspace: nothing leaves your box.
 Usage:
   pruefstand [options]
   pruefstand diff <old.json> <new.json>   compare two reports (see: pruefstand diff --help)
+  pruefstand verlauf [ordner]             trend over all reports as one HTML file
+                                          (see: pruefstand verlauf --help)
 
 Options:
   --profiles <a,b>   Defence profiles to run   (default: bare,deny-reads,sandbox)
@@ -58,6 +60,11 @@ async function main() {
   if (process.argv[2] === 'diff') {
     const { runDiff } = await import('../lib/diff-cli.mjs');
     process.exitCode = await runDiff(process.argv.slice(3));
+    return;
+  }
+  if (process.argv[2] === 'verlauf') {
+    const { runVerlauf } = await import('../lib/history-cli.mjs');
+    process.exitCode = await runVerlauf(process.argv.slice(3));
     return;
   }
   let o;
