@@ -100,6 +100,8 @@ test('über einen Modellwechsel hinweg kein Wechsel', () => {
   const a = h.zellen[0];
   assert.equal(a.wechsel.length, 0);
   assert.equal(a.seit, 1);
+  assert.equal(a.seitBeginn, false);
+  assert.equal(a.nachModellwechsel, true);
 });
 
 test('wackelig bei mehreren Läufen und topGekippt (höchstens fünf, sortiert)', () => {
