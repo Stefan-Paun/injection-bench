@@ -141,6 +141,31 @@ Warnung gemeldet (verglichen wird die Schnittmenge). Exit-Code: `0` keine
 Rückschritte, `1` Rückschritte, `2` Fehler bei Eingabe/Format oder keine gemeinsame, bewertbare Zelle (dann kann „keine Rückschritte“ nicht belegt werden). Details im
 englischen README; Workflow-Beispiel: `examples/diff-workflow.yml`.
 
+## Verlauf über alle Berichte (`verlauf`)
+
+```bash
+node bin/pruefstand.mjs --json berichte/2026-11-24.json   # Berichte sammeln (berichte/ ist in .gitignore)
+node bin/pruefstand.mjs verlauf                           # -> berichte/verlauf.html
+node bin/pruefstand.mjs verlauf berichte --format json > verlauf.json
+```
+
+Liest alle `*.json`-Berichte eines Ordners (Standard `berichte/`, nicht rekursiv) und
+schreibt **eine** HTML-Datei: Angriffsquote je Profil als Linie, je Szenario × Profil
+die Geschichte „hält/fällt“, die Wechsel (wann gekippt), „seit wann“ und die fünf
+Szenarien, die am häufigsten gekippt sind. Die Seite hat keine externen Verweise und
+kein Skript (Diagramm als statisches SVG, Raster mit Symbol + Text), folgt hell/dunkel
+und ist am Handy lesbar.
+
+- **Zeit eines Berichts:** `createdAt` im Bericht (neue Berichte schreiben es), sonst
+  ein Datum im Dateinamen (`2026-11-24.json`, `2026-11-24_2130.json`), sonst die
+  Änderungszeit der Datei (dann mit Hinweis).
+- **Trennstellen:** Ändern sich Korpus-Version, Modell oder Szenarienmenge, wird keine
+  Linie quer darüber gezogen; die Stelle ist sichtbar markiert. Über einen
+  Modellwechsel hinweg zählt auch kein Wechsel einer Zelle.
+- Kaputte Dateien werden mit Warnung übersprungen, Symlinks nicht verfolgt. Bei nur
+  einem Bericht entsteht eine ehrliche Seite „Noch kein Verlauf“.
+- Exit-Code `0` Seite geschrieben, `2` Ordner fehlt / kein lesbarer Bericht / falsche Option.
+
 ## Wiederholte Läufe (`--runs N`)
 
 Die Antworten eines Modells schwanken, ein Lauf je Fall ist deshalb eine

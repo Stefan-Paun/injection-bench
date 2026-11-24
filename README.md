@@ -166,6 +166,26 @@ node bin/pruefstand.mjs diff old.json new.json [--format text|md|json] [--fail-o
 A workflow snippet (documentation only) is in
 [`examples/diff-workflow.yml`](examples/diff-workflow.yml).
 
+## Trend over all reports (`verlauf`)
+
+```bash
+node bin/pruefstand.mjs --json berichte/2026-11-24.json   # collect reports (berichte/ is git-ignored)
+node bin/pruefstand.mjs verlauf                           # -> berichte/verlauf.html
+node bin/pruefstand.mjs verlauf berichte --format json > trend.json
+```
+
+Reads every `*.json` report in a folder (default `berichte/`, not recursive) and writes
+**one** HTML file: attack rate per profile as a line, the pass/fail history of every
+scenario × profile, the changes (when it flipped), "since when", and the five scenarios
+that flipped most often. No external references, no script (static SVG chart, grid with
+symbol + text), light/dark aware, readable on a phone.
+
+Report time comes from `createdAt` (new reports write it), else a date in the file name,
+else the file's modification time. A change of corpus version, model or scenario set is
+a visible break: no line is drawn across it. Broken files are skipped with a warning,
+symlinks are not followed, and a single report gives an honest "no trend yet" page.
+Exit code `0` page written, `2` error.
+
 ## Repeated runs (`--runs N`)
 
 A model's answers vary, so one run per case is a single observation, not a rate.
