@@ -151,7 +151,7 @@ async function main() {
   console.log(`\n  Total: ${costUsd.toFixed(3)} USD\n`);
 
   if (o.html) { await ensureDir(o.html); await writeFile(o.html, toHtml(results, { when: new Date().toISOString().slice(0, 16).replace('T', ' '), model: models.join(', '), costUsd, corpusVersion: corpus, repeats: agg })); console.log(`  HTML:  ${o.html}`); }
-  if (o.json) { await ensureDir(o.json); await writeFile(o.json, JSON.stringify(buildReport({ corpusVersion: corpus, benchmark: bench, results, runsPlanned: runs, aborted: out.aborted }), null, 2)); console.log(`  JSON:  ${o.json}`); }
+  if (o.json) { await ensureDir(o.json); await writeFile(o.json, JSON.stringify(buildReport({ corpusVersion: corpus, benchmark: bench, results, runsPlanned: runs, aborted: out.aborted, createdAt: new Date().toISOString() }), null, 2)); console.log(`  JSON:  ${o.json}`); }
   if (o.md) { await ensureDir(o.md); await writeFile(o.md, toMarkdown(bench, agg)); console.log(`  MD:    ${o.md}`); }
 
   process.exit(breaches(results).length ? 1 : out.aborted ? 130 : 0);
