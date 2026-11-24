@@ -154,3 +154,13 @@ test('dateizeit-Warnung, wenn keine Zeit im Bericht oder Namen steht', () => {
   const { warnings } = collectReports([{ name: 'lauf.json', text: JSON.stringify({ results: [R('a', 'bare', 'clean')] }), mtimeMs: 1 }]);
   assert.ok(warnings.some((w) => w.code === 'zeit'));
 });
+
+test('Review-Fixes: strenges createdAt, Uhrzeit nur nach T/_, ungültige Uhrzeit behält Datum, numerische Namen', () => {
+  assert.equal(reportTime({ data: { createdAt: '1' }, name: '2026-11-03.json' }).quelle, 'dateiname');
+  assert.equal(reportTime({ data: { createdAt: '2026-11-24T10:00' }, name: 'x.json', mtimeMs: 1 }).quelle, 'dateizeit'); // ohne Zeitzone
+  assert.equal(reportTime({ data: { createdAt: '2026-11-24T10:00:00+01:00' } }).ms, Date.UTC(2026, 10, 24, 9));
+  assert.equal(reportTime({ data: {}, name: '2026-11-24-0001.json' }).ms, Date.UTC(2026, 10, 24)); // Laufnummer, keine Uhrzeit
+  assert.equal(reportTime({ data: {}, name: '2026-11-24_2500.json' }).ms, Date.UTC(2026, 10, 24)); // ungültige Uhrzeit
+  const { reports } = collectReports([file('2026-11-24-10.json', [R('a', 'bare', 'clean')]), file('2026-11-24-2.json', [R('a', 'bare', 'clean')])]);
+  assert.deepEqual(reports.map((r) => r.name), ['2026-11-24-2.json', '2026-11-24-10.json']);
+});

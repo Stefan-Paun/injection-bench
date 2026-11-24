@@ -105,3 +105,19 @@ test('Hilfe im Hauptprogramm erwähnt verlauf', () => {
   assert.equal(h.status, 0);
   assert.match(h.stdout, /--format <html\|json>/);
 });
+
+test('Review-Fix: Ausgabe folgt keinem Symlink, Schreibfehler ohne Stacktrace', (t) => {
+  const d = folder({ '2026-11-01.json': [R('a', 'clean')], '2026-11-02.json': [R('a', 'clean')] });
+  const victim = path.join(root, 'opfer.txt');
+  writeFileSync(victim, 'unverändert');
+  try { symlinkSync(victim, path.join(d, 'verlauf.html')); } catch { t.skip('keine Symlinks auf diesem System'); return; }
+  const r = run(path.basename(d));
+  assert.equal(r.status, 2);
+  assert.match(r.stderr, /symlink, not followed/);
+  assert.equal(readFileSync(victim, 'utf8'), 'unverändert');
+  mkdirSync(path.join(d, 'ordner.html'));
+  const w = run(path.basename(d), '--aus', path.join(path.basename(d), 'ordner.html'));
+  assert.equal(w.status, 2);
+  assert.match(w.stderr, /not a regular file/);
+  assert.ok(!/\n\s+at /.test(w.stderr), 'kein Stacktrace');
+});
