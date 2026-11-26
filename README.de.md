@@ -48,7 +48,7 @@ Node 18+ und ein eingeloggtes [Claude Code](https://claude.com/claude-code)
 (`claude`) im `PATH`.
 
 ```bash
-git clone https://github.com/Stefan-Paun/pruefstand
+git clone https://github.com/Stefan-Paun/injection-bench
 cd pruefstand
 node bin/pruefstand.mjs --list
 ```

@@ -46,7 +46,7 @@ Requires Node 18+ and a logged-in [Claude Code](https://claude.com/claude-code)
 (`claude`) on your `PATH`.
 
 ```bash
-git clone https://github.com/Stefan-Paun/pruefstand
+git clone https://github.com/Stefan-Paun/injection-bench
 cd pruefstand
 node bin/pruefstand.mjs --list
 ```
