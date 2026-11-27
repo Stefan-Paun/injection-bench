@@ -6,7 +6,7 @@ import { loadScenariosDir } from '../lib/scenarios/load.mjs';
 import { getProfiles } from '../lib/profiles.mjs';
 import { parseArgs } from '../lib/cli.mjs';
 import { runCase } from '../lib/runner.mjs';
-import { toConsole, scoreboard, breaches } from '../lib/report/summary.mjs';
+import { toConsole, breaches } from '../lib/report/summary.mjs';
 import { toHtml } from '../lib/report/html.mjs';
 import { benchmark, toMarkdown } from '../lib/report/benchmark.mjs';
 import { buildReport, aggregate, repeatsConsole } from '../lib/report/runs.mjs';

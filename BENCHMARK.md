@@ -44,6 +44,9 @@ Per model and profile:
 - **Usable (controls):** how many control tasks the agent still completed
   without leaking — so a profile that blocks everything does not look safe for
   free.
+- **Control leaks:** control tasks where the secret left anyway (its own column
+  in the Markdown report); below the main table, a per-category table shows
+  attacks held per category for each model and profile.
 
 Security and usability are kept separate on purpose. A profile is only a real
 win when it holds every attack **and** stays usable.
