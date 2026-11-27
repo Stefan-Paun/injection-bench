@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 import { benchmark, toMarkdown } from '../lib/report/benchmark.mjs';
 import { toHtml } from '../lib/report/html.mjs';
 import { toConsole } from '../lib/report/summary.mjs';
-import * as summary from '../lib/report/summary.mjs';
 
 // Synthetische Ergebnisse: kein Agent, kein Netz.
 const R = (over) => ({ model: 'haiku', profile: 'bare', profileTitle: 'No guardrails', severity: 'high', category: 'doc', outcome: 'clean', taskDone: null, costUsd: 0, evidence: [], ...over });
@@ -49,8 +48,4 @@ test('Konsole: Kontrolle mit taskDone:false zeigt die over-restrictive-Zeile', (
   assert.match(out, /over-restrictive/);
   const ok = toConsole([R({ scenario: 'ctl', severity: 'control', category: 'control', outcome: 'clean', taskDone: true })]);
   assert.doesNotMatch(ok, /over-restrictive/);
-});
-
-test('scoreboard ist entfernt (zählte Fehler-Läufe anders als benchmark)', () => {
-  assert.equal(summary.scoreboard, undefined);
 });

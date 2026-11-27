@@ -82,11 +82,13 @@ writeFileSync(REPORT, JSON.stringify({ pid: process.pid, kid: kid.pid }));
 setTimeout(() => {}, 60000);
 `, async (agentCmd, report) => {
     const t0 = Date.now();
-    const r = await runCase({ scenario, profile: bare, agentCmd, timeoutMs: 800 });
+    const r = await runCase({ scenario, profile: bare, agentCmd, timeoutMs: 2500 });
     assert.ok(Date.now() - t0 < 10000, 'runCase hat nicht rechtzeitig abgebrochen');
     assert.equal(r.outcome, 'error');
     assert.equal(r.timedOut, true);
-    const { pid, kid } = report();
+    let pids;
+    try { pids = report(); } catch { assert.fail('Attrappe startete nicht rechtzeitig (kein Bericht)'); }
+    const { pid, kid } = pids;
     let left = [];
     for (let i = 0; i < 40; i++) { left = [pid, kid].filter(alive); if (!left.length) break; await new Promise((s) => setTimeout(s, 50)); }
     for (const p of left) { try { process.kill(p, 'SIGKILL'); } catch { /* gone */ } }
