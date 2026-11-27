@@ -82,11 +82,19 @@ test('a control that leaks counts as not usable and raises the worst outcome', (
 
 test('markdown header, separator and rows all have the same column count', () => {
   const md = toMarkdown(benchmark(results, { corpusVersion: 't' }));
-  const tableRows = md.split('\n').filter((l) => l.trim().startsWith('|'));
-  const cols = (l) => l.split('|').slice(1, -1).length;
-  const counts = new Set(tableRows.map(cols));
-  assert.equal(counts.size, 1, `ragged table: column counts ${[...counts].join(',')}`);
-  assert.ok(tableRows.length >= 3); // header + separator + >=1 row
+  // Jede Tabelle (Block aufeinanderfolgender |-Zeilen) einzeln prüfen.
+  const tables = [];
+  let cur = null;
+  for (const l of md.split('\n')) {
+    if (l.trim().startsWith('|')) { if (!cur) tables.push(cur = []); cur.push(l); } else cur = null;
+  }
+  const cols = (l) => l.replace(/\\\|/g, '').split('|').slice(1, -1).length;
+  assert.ok(tables.length >= 2); // Haupttabelle + mindestens eine Kategorie-Tabelle
+  for (const rows of tables) {
+    const counts = new Set(rows.map(cols));
+    assert.equal(counts.size, 1, `ragged table: column counts ${[...counts].join(',')}`);
+    assert.ok(rows.length >= 3); // header + separator + >=1 row
+  }
 });
 
 test('an errored control is not counted as a control leak', () => {
